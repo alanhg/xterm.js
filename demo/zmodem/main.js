@@ -118,49 +118,46 @@ function createTerminal() {
         socket.onerror = runFakeTerminal;
 
         term.zmodemAttach(socket, {
-            noTerminalWriteOutsideSession: true,
-        } );
+          noTerminalWriteOutsideSession: true,
+        });
 
         term.on("zmodemRetract", () => {
-            start_form.style.display = "none";
-            start_form.onsubmit = null;
+          start_form.style.display = "none";
+          start_form.onsubmit = null;
         });
 
         term.on("zmodemDetect", (detection) => {
-            function do_zmodem() {
-                term.detach();
-                let zsession = detection.confirm();
+          function do_zmodem() {
+            term.detach();
+            let zsession = detection.confirm();
 
-                var promise;
+            var promise;
 
-                if (zsession.type === "receive") {
-                    promise = _handle_receive_session(zsession);
-                }
-                else {
-                    promise = _handle_send_session(zsession);
-                }
-
-                promise.catch( console.error.bind(console) ).then( () => {
-                    term.attach(socket);
-                } );
+            if (zsession.type === "receive") {
+              promise = _handle_receive_session(zsession);
+            } else {
+              promise = _handle_send_session(zsession);
             }
 
-            if (_auto_zmodem()) {
+            promise.catch(console.error.bind(console)).then(() => {
+              term.attach(socket);
+            });
+          }
+
+          if (_auto_zmodem()) {
+            do_zmodem();
+          } else {
+            start_form.style.display = "";
+            start_form.onsubmit = function (e) {
+              start_form.style.display = "none";
+
+              if (document.getElementById("zmstart_yes").checked) {
                 do_zmodem();
-            }
-            else {
-                start_form.style.display = "";
-                start_form.onsubmit = function(e) {
-                    start_form.style.display = "none";
-
-                    if (document.getElementById("zmstart_yes").checked) {
-                        do_zmodem();
-                    }
-                    else {
-                        detection.deny();
-                    }
-                };
-            }
+              } else {
+                detection.deny();
+              }
+            };
+          }
         });
       });
     });
@@ -171,162 +168,163 @@ function createTerminal() {
 // UI STUFF
 
 function _show_file_info(xfer) {
-    var file_info = xfer.get_details();
+  var file_info = xfer.get_details();
 
-    document.getElementById("name").textContent = file_info.name;
-    document.getElementById("size").textContent = file_info.size;
-    document.getElementById("mtime").textContent = file_info.mtime;
-    document.getElementById("files_remaining").textContent = file_info.files_remaining;
-    document.getElementById("bytes_remaining").textContent = file_info.bytes_remaining;
+  document.getElementById("name").textContent = file_info.name;
+  document.getElementById("size").textContent = file_info.size;
+  document.getElementById("mtime").textContent = file_info.mtime;
+  document.getElementById("files_remaining").textContent = file_info.files_remaining;
+  document.getElementById("bytes_remaining").textContent = file_info.bytes_remaining;
 
-    document.getElementById("mode").textContent = "0" + file_info.mode.toString(8);
+  document.getElementById("mode").textContent = "0" + file_info.mode.toString(8);
 
-    var xfer_opts = xfer.get_options();
-    ["conversion", "management", "transport", "sparse"].forEach( (lbl) => {
-        document.getElementById(`zfile_${lbl}`).textContent = xfer_opts[lbl];
-    } );
+  var xfer_opts = xfer.get_options();
+  ["conversion", "management", "transport", "sparse"].forEach((lbl) => {
+    document.getElementById(`zfile_${lbl}`).textContent = xfer_opts[lbl];
+  });
 
-    document.getElementById("zm_file").style.display = "";
+  document.getElementById("zm_file").style.display = "";
 }
+
 function _hide_file_info() {
-    document.getElementById("zm_file").style.display = "none";
+  document.getElementById("zm_file").style.display = "none";
 }
 
 function _save_to_disk(xfer, buffer) {
-    return Zmodem.Browser.save_to_disk(buffer, xfer.get_details().name);
+  return Zmodem.Browser.save_to_disk(buffer, xfer.get_details().name);
 }
 
 var skipper_button = document.getElementById("zm_progress_skipper");
 var skipper_button_orig_text = skipper_button.textContent;
 
 function _show_progress() {
-    skipper_button.disabled = false;
-    skipper_button.textContent = skipper_button_orig_text;
+  skipper_button.disabled = false;
+  skipper_button.textContent = skipper_button_orig_text;
 
-    document.getElementById("bytes_received").textContent = 0;
-    document.getElementById("percent_received").textContent = 0;
+  document.getElementById("bytes_received").textContent = 0;
+  document.getElementById("percent_received").textContent = 0;
 
-    document.getElementById("zm_progress").style.display = "";
+  document.getElementById("zm_progress").style.display = "";
 }
 
 function _update_progress(xfer) {
-    var total_in = xfer.get_offset();
+  var total_in = xfer.get_offset();
 
-    document.getElementById("bytes_received").textContent = total_in;
+  document.getElementById("bytes_received").textContent = total_in;
 
-    var percent_received = 100 * total_in / xfer.get_details().size;
-    document.getElementById("percent_received").textContent = percent_received.toFixed(2);
+  var percent_received = 100 * total_in / xfer.get_details().size;
+  console.log(percent_received + '%');
+  document.getElementById("percent_received").textContent = percent_received.toFixed(2);
 }
 
 function _hide_progress() {
-    document.getElementById("zm_progress").style.display = "none";
+  document.getElementById("zm_progress").style.display = "none";
 }
 
 var start_form = document.getElementById("zm_start");
 
 function _auto_zmodem() {
-    return document.getElementById("zmodem-auto").checked;
+  return document.getElementById("zmodem-auto").checked;
 }
 
 // END UI STUFF
 //----------------------------------------------------------------------
 
 function _handle_receive_session(zsession) {
-    zsession.on("offer", function(xfer) {
-        current_receive_xfer = xfer;
+  zsession.on("offer", function (xfer) {
+    current_receive_xfer = xfer;
 
-        _show_file_info(xfer);
+    _show_file_info(xfer);
 
-        var offer_form = document.getElementById("zm_offer");
+    var offer_form = document.getElementById("zm_offer");
 
-        function on_form_submit() {
-            offer_form.style.display = "none";
+    function on_form_submit() {
+      offer_form.style.display = "none";
 
-            //START
-            //if (offer_form.zmaccept.value) {
-            if (_auto_zmodem() || document.getElementById("zmaccept_yes").checked) {
-                _show_progress();
+      //START
+      //if (offer_form.zmaccept.value) {
+      if (_auto_zmodem() || document.getElementById("zmaccept_yes").checked) {
+        _show_progress();
 
-                var FILE_BUFFER = [];
-                xfer.on("input", (payload) => {
-                    _update_progress(xfer);
-                    FILE_BUFFER.push( new Uint8Array(payload) );
-                });
-                xfer.accept().then(
-                    () => {
-                        _save_to_disk(xfer, FILE_BUFFER);
-                    },
-                    console.error.bind(console)
-                );
-            }
-            else {
-                xfer.skip();
-            }
-            //END
-        }
+        var FILE_BUFFER = [];
+        xfer.on("input", (payload) => {
+          _update_progress(xfer);
+          FILE_BUFFER.push(new Uint8Array(payload));
+        });
+        xfer.accept().then(
+            () => {
+              _save_to_disk(xfer, FILE_BUFFER);
+            },
+            console.error.bind(console)
+        );
+      } else {
+        xfer.skip();
+      }
+      //END
+    }
 
-        if (_auto_zmodem()) {
-            on_form_submit();
-        }
-        else {
-            offer_form.onsubmit = on_form_submit;
-            offer_form.style.display = "";
-        }
-    } );
+    if (_auto_zmodem()) {
+      on_form_submit();
+    } else {
+      offer_form.onsubmit = on_form_submit;
+      offer_form.style.display = "";
+    }
+  });
 
-    var promise = new Promise( (res) => {
-        zsession.on("session_end", () => {
-            _hide_file_info();
-            _hide_progress();
-            res();
-        } );
-    } );
+  var promise = new Promise((res) => {
+    zsession.on("session_end", () => {
+      _hide_file_info();
+      _hide_progress();
+      res();
+    });
+  });
 
-    zsession.start();
+  zsession.start();
 
-    return promise;
+  return promise;
 }
 
 function _handle_send_session(zsession) {
-    var choose_form = document.getElementById("zm_choose");
-    choose_form.style.display = "";
+  var choose_form = document.getElementById("zm_choose");
+  choose_form.style.display = "";
 
-    var file_el = document.getElementById("zm_files");
+  var file_el = document.getElementById("zm_files");
 
-    var promise = new Promise( (res) => {
-        file_el.onchange = function(e) {
-            choose_form.style.display = "none";
+  var promise = new Promise((res) => {
+    file_el.onchange = function (e) {
+      choose_form.style.display = "none";
 
-            var files_obj = file_el.files;
+      var files_obj = file_el.files;
 
-            Zmodem.Browser.send_files(
-                zsession,
-                files_obj,
-                {
-                    on_offer_response(obj, xfer) {
-                        if (xfer) _show_progress();
-                        //console.log("offer", xfer ? "accepted" : "skipped");
-                    },
-                    on_progress(obj, xfer) {
-                        _update_progress(xfer);
-                    },
-                    on_file_complete(obj) {
-                        //console.log("COMPLETE", obj);
-                        _hide_progress();
-                    },
-                }
-            ).then(_hide_progress).then(
-                zsession.close.bind(zsession),
-                console.error.bind(console)
-            ).then( () => {
-                _hide_file_info();
-                _hide_progress();
-                res();
-            } );
-        };
-    } );
+      Zmodem.Browser.send_files(
+          zsession,
+          files_obj,
+          {
+            on_offer_response(obj, xfer) {
+              if (xfer) _show_progress();
+              console.log("offer", xfer ? "accepted" : "skipped");
+            },
+            on_progress(obj, xfer) {
+              _update_progress(xfer);
+            },
+            on_file_complete(obj) {
+              console.log("COMPLETE", obj);
+              term.writeln('\nupload complete!');
+              _hide_progress();
+            },
+          }
+      ).then(_hide_progress).then(
+          zsession.close.bind(zsession),
+          console.error.bind(console)
+      ).then(() => {
+        _hide_file_info();
+        _hide_progress();
+        res();
+      });
+    };
+  });
 
-    return promise;
+  return promise;
 }
 
 //This is here to allow canceling of an in-progress ZMODEM transfer.
@@ -334,16 +332,16 @@ var current_receive_xfer;
 
 //Called from HTML directly.
 function skip_current_file() {
-    current_receive_xfer.skip();
+  current_receive_xfer.skip();
 
-    skipper_button.disabled = true;
-    skipper_button.textContent = "Waiting for server to acknowledge skip …";
+  skipper_button.disabled = true;
+  skipper_button.textContent = "Waiting for server to acknowledge skip …";
 }
 
 function runRealTerminal() {
-    term.attach(socket);
+  term.attach(socket);
 
-    term._initialized = true;
+  term._initialized = true;
 }
 
 function runFakeTerminal() {
@@ -367,13 +365,13 @@ function runFakeTerminal() {
 
   term.on('key', function (key, ev) {
     var printable = (
-      !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey
+        !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey
     );
 
     if (ev.keyCode == 13) {
       term.prompt();
     } else if (ev.keyCode == 8) {
-     // Do not delete the prompt
+      // Do not delete the prompt
       if (term.x > 2) {
         term.write('\b \b');
       }
