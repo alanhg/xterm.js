@@ -414,8 +414,7 @@ function checkIt() {
     alert('Files Loaded');
   } else {
     alert('Cancel clicked');
-    socket.send(Zmodem.ZMLIB.ABORT_SEQUENCE);
-    console.log(Zmodem.ZMLIB.ABORT_SEQUENCE);
+    socket.send(str2ab('\x18\x18\x18\x18\x18'));
   }
   document.body.onfocus = null;
   console.log('checked');
