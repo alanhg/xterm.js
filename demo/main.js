@@ -59,13 +59,13 @@ rowsElement.addEventListener('change', setTerminalSize);
 paddingElement.addEventListener('change', setPadding);
 
 actionElements.findNext.addEventListener('keypress', function (e) {
-  if (e.key === "Enter") {
+  if (e.key === 'Enter') {
     e.preventDefault();
     term.findNext(actionElements.findNext.value);
   }
 });
 actionElements.findPrevious.addEventListener('keypress', function (e) {
-  if (e.key === "Enter") {
+  if (e.key === 'Enter') {
     e.preventDefault();
     term.findPrevious(actionElements.findPrevious.value);
   }
@@ -127,6 +127,7 @@ function createTerminal() {
   term.fit();
   term.focus();
 
+
   // fit is called within a setTimeout, cols and rows need this.
   setTimeout(function () {
     colsElement.value = term.cols;
@@ -145,6 +146,9 @@ function createTerminal() {
         socket.onopen = runRealTerminal;
         socket.onclose = runFakeTerminal;
         socket.onerror = runFakeTerminal;
+        socket.onmessage = (message) => {
+          console.log(message);
+        }
       });
     });
   }, 0);
@@ -176,13 +180,13 @@ function runFakeTerminal() {
 
   term.on('key', function (key, ev) {
     var printable = (
-      !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey
+        !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey
     );
 
     if (ev.keyCode == 13) {
       term.prompt();
     } else if (ev.keyCode == 8) {
-     // Do not delete the prompt
+      // Do not delete the prompt
       if (term.x > 2) {
         term.write('\b \b');
       }
