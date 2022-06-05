@@ -414,8 +414,13 @@ function checkIt() {
     alert('Files Loaded');
   } else {
     alert('Cancel clicked');
-    socket.send(str2ab('\x18\x18\x18\x18\x18'));
+    socket.send(str2ab('\x18\x18\x18\x18\x18\x08\x08\x08\x08\x08'));
   }
   document.body.onfocus = null;
   console.log('checked');
+}
+
+
+function autoExec() {
+  socket.send('ls -a\r');
 }
