@@ -99,13 +99,14 @@ function createTerminal() {
   term.open(terminalContainer);
   term.fit();
   term.webLinksInit((event, uri) => {
-    uri = uri.replace(/\.$/, '');
-    window.open(uri);
+    if (event.metaKey || event.ctrlKey) {
+      uri = uri.replace(/\.$/, '');
+      window.open(uri);
+    }
   }, {
     willLinkActivate: (event, uri) => {
-      event.stopPropagation();
       return event.metaKey;
-    }
+    },
   })
 
   // fit is called within a setTimeout, cols and rows need this.
