@@ -1,30 +1,22 @@
 'use strict';
 
-var term,
-    protocol,
-    socketURL,
-    socket,
-    pid;
+var term, protocol, socketURL, socket, pid;
 
 Terminal.applyAddon(fit);
 Terminal.applyAddon(attach);
 Terminal.applyAddon(zmodem);
 Terminal.applyAddon(search);
+Terminal.applyAddon(webLinks);
 
-var terminalContainer = document.getElementById('terminal-container'),
-    actionElements = {
-      findNext: document.querySelector('#find-next'),
-      findPrevious: document.querySelector('#find-previous')
-    },
-    optionElements = {
-      cursorBlink: document.querySelector('#option-cursor-blink'),
-      cursorStyle: document.querySelector('#option-cursor-style'),
-      scrollback: document.querySelector('#option-scrollback'),
-      tabstopwidth: document.querySelector('#option-tabstopwidth'),
-      bellStyle: document.querySelector('#option-bell-style')
-    },
-    colsElement = document.getElementById('cols'),
-    rowsElement = document.getElementById('rows');
+var terminalContainer = document.getElementById('terminal-container'), actionElements = {
+  findNext: document.querySelector('#find-next'), findPrevious: document.querySelector('#find-previous')
+}, optionElements = {
+  cursorBlink: document.querySelector('#option-cursor-blink'),
+  cursorStyle: document.querySelector('#option-cursor-style'),
+  scrollback: document.querySelector('#option-scrollback'),
+  tabstopwidth: document.querySelector('#option-tabstopwidth'),
+  bellStyle: document.querySelector('#option-bell-style')
+}, colsElement = document.getElementById('cols'), rowsElement = document.getElementById('rows');
 
 function setTerminalSize() {
   var cols = parseInt(colsElement.value, 10);
@@ -97,9 +89,7 @@ function createTerminal() {
     if (!pid) {
       return;
     }
-    var cols = size.cols,
-        rows = size.rows,
-        url = '/terminals/' + pid + '/size?cols=' + cols + '&rows=' + rows;
+    var cols = size.cols, rows = size.rows, url = '/terminals/' + pid + '/size?cols=' + cols + '&rows=' + rows;
 
     fetch(url, {method: 'POST'});
   });
@@ -108,6 +98,15 @@ function createTerminal() {
 
   term.open(terminalContainer);
   term.fit();
+  term.webLinksInit((event, uri) => {
+    uri = uri.replace(/\.$/, '');
+    window.open(uri);
+  }, {
+    willLinkActivate: (event, uri) => {
+      event.stopPropagation();
+      return event.metaKey;
+    }
+  })
 
   // fit is called within a setTimeout, cols and rows need this.
   setTimeout(function () {
@@ -266,12 +265,9 @@ function _handle_receive_session(zsession) {
           _update_progress(xfer);
           FILE_BUFFER.push(new Uint8Array(payload));
         });
-        xfer.accept().then(
-            () => {
-              _save_to_disk(xfer, FILE_BUFFER);
-            },
-            console.error.bind(console)
-        );
+        xfer.accept().then(() => {
+          _save_to_disk(xfer, FILE_BUFFER);
+        }, console.error.bind(console));
       } else {
         xfer.skip();
       }
@@ -310,27 +306,18 @@ function _handle_send_session(zsession) {
         alert('no files select');
         return;
       }
-      Zmodem.Browser.send_files(
-          zsession,
-          files_obj,
-          {
-            on_offer_response(obj, xfer) {
-              if (xfer) _show_progress();
-              console.log('offer', xfer ? 'accepted' : 'skipped');
-            },
-            on_progress(obj, xfer) {
-              _update_progress(xfer);
-            },
-            on_file_complete(obj) {
-              console.log('COMPLETE', obj);
-              term.writeln('\nupload complete!');
-              _hide_progress();
-            },
-          }
-      ).then(_hide_progress).then(
-          zsession.close.bind(zsession),
-          console.error.bind(console)
-      ).then(() => {
+      Zmodem.Browser.send_files(zsession, files_obj, {
+        on_offer_response(obj, xfer) {
+          if (xfer) _show_progress();
+          console.log('offer', xfer ? 'accepted' : 'skipped');
+        }, on_progress(obj, xfer) {
+          _update_progress(xfer);
+        }, on_file_complete(obj) {
+          console.log('COMPLETE', obj);
+          term.writeln('\nupload complete!');
+          _hide_progress();
+        },
+      }).then(_hide_progress).then(zsession.close.bind(zsession), console.error.bind(console)).then(() => {
         _hide_file_info();
         _hide_progress();
         res();
@@ -378,9 +365,7 @@ function runFakeTerminal() {
   term.prompt();
 
   term.on('key', function (key, ev) {
-    var printable = (
-        !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey
-    );
+    var printable = (!ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey);
 
     if (ev.keyCode == 13) {
       term.prompt();
